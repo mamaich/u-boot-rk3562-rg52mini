@@ -674,6 +674,7 @@ static void inno_mipi_dphy_timing_init(struct inno_video_phy *inno)
 		phy_update_bits(inno, i, 0x12, T_TA_WAIT_CNT_MASK,
 				T_TA_WAIT_CNT(ta_wait));
 	}
+
 }
 
 static void inno_mipi_dphy_lane_enable(struct inno_video_phy *inno)
@@ -954,7 +955,12 @@ inno_video_phy_max_2_5ghz_or_4_5ghz_pll_round_rate(struct inno_video_phy *inno,
 	min_prediv = DIV_ROUND_UP(fref, 100 * HZ_PER_MHZ);
 	max_prediv = div64_ul(fref, 10 * HZ_PER_MHZ);
 
-	for (_postdiv = 0; _postdiv <= 31; _postdiv++) {
+	/*
+	 * Keep the VCO where it used to run before the postdiv support was
+	 * added: a higher postdiv reaches the same output frequency with the
+	 * VCO spinning twice as fast, and this panel tears on it.
+	 */
+	for (_postdiv = 0; _postdiv <= 1; _postdiv++) {
 		fvco = fout * (_postdiv ? _postdiv * 2 : 1);
 		if (fvco < min_vco || fvco > max_vco)
 			continue;
@@ -1077,6 +1083,27 @@ inno_video_phy_max_1ghz_or_1_5ghz_pll_round_rate(struct inno_video_phy *inno,
 	return best_freq;
 }
 
+
+/*
+ * The generic helpers fill in the MIPI D-PHY minimums, but this panel does
+ * not lock onto them: the picture tears and shakes. Restore the timings
+ * Rockchip used before the switch to the generic phy framework, computed
+ * from the rate the PLL actually settled on.
+ */
+static void inno_mipi_dphy_timing_override(struct phy_configure_opts_mipi_dphy *cfg,
+					   unsigned long hs_clk_rate)
+{
+	unsigned long period = div_u64(PSEC_PER_SEC, hs_clk_rate);
+
+	cfg->clk_post = 70000 + 52 * period;
+	cfg->clk_pre = 8 * period;
+	cfg->hs_exit = 120000;
+	cfg->lpx = 60000;
+	cfg->ta_get = 5 * cfg->lpx;
+	cfg->ta_go = 4 * cfg->lpx;
+	cfg->ta_sure = 2 * cfg->lpx;
+}
+
 static int inno_video_phy_configure(struct phy *phy, union phy_configure_opts *phy_opts)
 {
 	struct inno_video_phy *inno = dev_get_priv(phy->dev);
@@ -1106,6 +1133,8 @@ static int inno_video_phy_configure(struct phy *phy, union phy_configure_opts *p
 
 	cfg->hs_clk_rate = inno->pll.rate;
 	opts->hs_clk_rate = inno->pll.rate;
+
+	inno_mipi_dphy_timing_override(cfg, inno->pll.rate);
 
 	return 0;
 }
