@@ -1416,7 +1416,11 @@ static int load_bmp_logo(struct logo_info *logo, const char *bmp_name, uintptr_t
 		memcpy(bmp_data, (void *)addr, MAX_IMAGE_BYTES);
 	} else {
 		len = rockchip_read_resource_file(bmp_data, bmp_name, 0, MAX_IMAGE_BYTES);
-		if (len < 0) {
+#ifdef CONFIG_ROCKCHIP_EARLY_DISTRO_DTB
+		if (len < 0)
+			len = rockchip_read_distro_file(bmp_data, bmp_name);
+#endif
+		if (len <= 0) {
 			ret = -EINVAL;
 			goto free_bmp_data;
 		}

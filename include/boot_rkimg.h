@@ -74,6 +74,9 @@ void board_run_recovery_wipe_data(void);
 void setup_download_mode(void);
 int get_bcb_recovery_msg(void);
 int rockchip_read_dtb_file(void *fdt_addr);
+#ifdef CONFIG_ROCKCHIP_EARLY_DISTRO_DTB
+int rockchip_read_distro_file(void *buf, const char *name);
+#endif
 int rockchip_ram_read_dtb_file(void *img, void *fdt_addr);
 int init_kernel_dtb(void);
 int fit_write_trusty_rollback_index(u32 trusty_index);

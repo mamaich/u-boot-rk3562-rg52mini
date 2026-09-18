@@ -493,6 +493,49 @@ static int rockchip_read_distro_dtb(void *fdt_addr)
 
 	return 0;
 }
+
+/*
+ * Read a file from the bootable partition, the same place the early distro
+ * dtb comes from. The vendor keeps logo.bmp and the charge animation frames
+ * there as plain files, instead of packing them into resource.img.
+ */
+int rockchip_read_distro_file(void *buf, const char *name)
+{
+	const char *cmd = "part list ${devtype} ${devnum} -bootable devplist";
+	char *devnum, *devtype, *devplist;
+	char devnum_part[12];
+	char addr_str[19];
+	char path[64];
+	char *fs_argv[5];
+
+	if (!rockchip_get_bootdev() || !buf || !name)
+		return -ENODEV;
+
+	if (run_command_list(cmd, -1, 0))
+		return -EINVAL;
+
+	devplist = env_get("devplist");
+	if (!devplist)
+		devplist = "1";
+
+	devtype = env_get("devtype");
+	devnum = env_get("devnum");
+	snprintf(devnum_part, sizeof(devnum_part), "%s:%s", devnum, devplist);
+	snprintf(addr_str, sizeof(addr_str), "0x%lx", (ulong)buf);
+	snprintf(path, sizeof(path), "/%s", name);
+
+	fs_argv[0] = "load";
+	fs_argv[1] = devtype;
+	fs_argv[2] = devnum_part;
+	fs_argv[3] = addr_str;
+	fs_argv[4] = path;
+
+	if (do_load(NULL, 0, 5, fs_argv, FS_TYPE_ANY))
+		return -EIO;
+
+	return env_get_ulong("filesize", 16, 0);
+}
+
 #endif
 
 enum {
