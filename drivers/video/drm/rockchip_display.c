@@ -1705,7 +1705,12 @@ int rockchip_show_logo(void)
 		if (load_bmp_logo(&s->logo, s->ulogo_name, 0)) {
 			printf("failed to display uboot logo\n");
 		} else {
-			ret = display_logo(s);
+			/*
+			 * Leaving charge mode the display is already up and
+			 * showing the last battery frame; display_logo() will
+			 * not replace it, so refresh the way show_bmp does.
+			 */
+			ret = s->is_init ? display_bmp(s) : display_logo(s);
 			if (ret == -EAGAIN)
 				ms = s;
 		}
