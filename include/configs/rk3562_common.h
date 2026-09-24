@@ -57,6 +57,26 @@
 #define CONFIG_PREBOOT
 #define CONFIG_SYS_NONCACHED_MEMORY	(1 << 20)	/* 1 MiB */
 
+/*
+ * Bounds for the "mtest" command. U-Boot proper relocates itself just below
+ * the top of usable DRAM and the distro boot commands load into the first
+ * 170 MiB, so the default window stays clear of both ends. It is also kept
+ * inside the first gigabyte, because this header is shared by every RK3562
+ * board: on the 2 GiB RG52 Mini a wider run is one argument away,
+ * "mtest 0x10000000 0x70000000".
+ *
+ * The alternative test is the one worth having here. Besides walking
+ * patterns through memory it checks the address lines, which is how a DRAM
+ * clock set too high usually fails. It parks the complement of each pattern
+ * at a scratch word so that a floating bus cannot read back as correct, so
+ * that word must be real DRAM outside the tested window - and must not be
+ * left at 0, where the SPL leaves the DDR parameters for the kernel.
+ */
+#define CONFIG_SYS_ALT_MEMTEST
+#define CONFIG_SYS_MEMTEST_START	0x10000000	/* 256 MiB */
+#define CONFIG_SYS_MEMTEST_END		0x30000000	/* 768 MiB */
+#define CONFIG_SYS_MEMTEST_SCRATCH	0x30100000
+
 #define CONFIG_SPL_LOAD_FIT_ADDRESS	0x2000000
 
 #ifndef CONFIG_SPL_BUILD
