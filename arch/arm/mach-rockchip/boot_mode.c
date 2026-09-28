@@ -202,6 +202,15 @@ int rockchip_get_boot_mode(void)
 			printf("boot mode: watchdog\n");
 			boot_mode[PL] = BOOT_MODE_WATCHDOG;
 			break;
+		case BOOT_EMMC:
+			/*
+			 * The boot device is switched in boot_devtype_init(),
+			 * from here on this is an ordinary normal boot.
+			 */
+			printf("boot mode: normal (from emmc)\n");
+			boot_mode[PL] = BOOT_MODE_NORMAL;
+			clear_boot_reg = 1;
+			break;
 		case BOOT_QUIESCENT:
 			printf("boot mode: quiescent\n");
 			boot_mode[PL] = BOOT_MODE_QUIESCENT;

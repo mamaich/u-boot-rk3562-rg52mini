@@ -117,6 +117,25 @@ static void boot_devtype_init(void)
 	mpb_post(0);
 #endif
 
+#if (CONFIG_ROCKCHIP_BOOT_MODE_REG > 0)
+	/*
+	 * "reboot emmc" takes the OS from the internal storage this once, as
+	 * if no card was inserted. It outranks both the configuration and the
+	 * atags, which name the media the loader itself was read from - that
+	 * one stays whatever the boot rom picked.
+	 *
+	 * The register is left for rockchip_get_boot_mode() to report and
+	 * clear, so the next boot goes back to the card on its own.
+	 */
+	if (readl((void *)CONFIG_ROCKCHIP_BOOT_MODE_REG) == BOOT_EMMC) {
+		if (!bootdev_init("mmc", "0")) {
+			src = "reboot emmc";
+			goto finish;
+		}
+		printf("reboot emmc: no emmc found, using the default\n");
+	}
+#endif
+
 	/* configuration */
 	if (!param_parse_assign_bootdev(&devtype, &devnum, &routing)) {
 		assign_bootdev_set_iomux(devtype, devnum, routing);
