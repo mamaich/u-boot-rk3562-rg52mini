@@ -130,9 +130,24 @@ static void boot_devtype_init(void)
 	if (readl((void *)CONFIG_ROCKCHIP_BOOT_MODE_REG) == BOOT_EMMC) {
 		if (!bootdev_init("mmc", "0")) {
 			src = "reboot emmc";
+			/*
+			 * Setting the boot device is not enough: distro boot
+			 * walks ${boot_targets}, which lists the card ahead of
+			 * the internal storage, and would find the card again
+			 * and boot from it. For this one boot the card is
+			 * meant to be invisible, so leave the internal
+			 * storage alone in the list.
+			 */
+			env_set("boot_targets", "mmc0");
+			/*
+			 * A board with no serial console needs some way to
+			 * tell what happened; this reaches /proc/cmdline.
+			 */
+			env_update("bootargs", "ubootbootdev=emmc");
 			goto finish;
 		}
 		printf("reboot emmc: no emmc found, using the default\n");
+		env_update("bootargs", "ubootbootdev=emmc-missing");
 	}
 #endif
 

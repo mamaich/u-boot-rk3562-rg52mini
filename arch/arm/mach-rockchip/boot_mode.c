@@ -206,10 +206,16 @@ int rockchip_get_boot_mode(void)
 			/*
 			 * The boot device is switched in boot_devtype_init(),
 			 * from here on this is an ordinary normal boot.
+			 *
+			 * The register is zeroed rather than set to
+			 * BOOT_NORMAL: the kernel then reports a cold boot in
+			 * /sys/kernel/boot_mode, which tells "the flag was
+			 * seen here" apart from "something cleared it" on a
+			 * board with no serial console.
 			 */
 			printf("boot mode: normal (from emmc)\n");
 			boot_mode[PL] = BOOT_MODE_NORMAL;
-			clear_boot_reg = 1;
+			writel(BOOT_COLD, (void *)CONFIG_ROCKCHIP_BOOT_MODE_REG);
 			break;
 		case BOOT_QUIESCENT:
 			printf("boot mode: quiescent\n");
