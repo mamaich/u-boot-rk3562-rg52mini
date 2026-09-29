@@ -142,6 +142,27 @@ struct memblock param_parse_optee_mem(void)
 	if (mem.size)
 		gd->flags |= GD_FLG_BL32_ENABLED;
 
+	/*
+	 * RG52 Mini: hand the non-secure shared-memory window back to Linux.
+	 *
+	 * OP-TEE reports one region here - TEE_RAM, TA_RAM and SHMEM in a row -
+	 * and all of it is carved out of the memory banks. The tail of that
+	 * region is SHMEM: by definition non-secure memory, used to pass
+	 * messages between the normal world and the secure one.
+	 *
+	 * On this device nothing in Linux ever talks to OP-TEE: the kernel has
+	 * no optee node in its device tree, the driver never probes and
+	 * /dev/tee* does not exist. U-Boot is done with its own calls long
+	 * before the kernel starts. So the window sits unused while 2 MiB of a
+	 * 2 GiB machine are lost.
+	 *
+	 * Only the tail is given back. TEE_RAM and TA_RAM stay reserved: those
+	 * are secure memory, and handing them to Linux would mean the secure
+	 * world writing over pages Linux believes it owns.
+	 */
+	if (mem.size > SZ_2M)
+		mem.size -= SZ_2M;
+
 	debug("TOS: 0x%llx - 0x%llx\n", (u64)mem.base, (u64)mem.base + mem.size);
 
 	return mem;
