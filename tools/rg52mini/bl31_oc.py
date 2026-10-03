@@ -18,6 +18,10 @@ usage:
   bl31_oc.py rk3562_bl31_v1.21.elf -o bl31_oc.elf --cpu 2112:4:4 --cpu 2208:4:3 --gpu 1000:1:11
     --cpu/--gpu/--npu MHZ:RING:LEN   add or update an entry
     --recycle-cpu MHZ (likewise gpu/npu)  allow overwriting an existing entry (CPU default: 1896, 1704)
+    --drop-lowest KEY   when the SCMI list is full of live rates, drop its lowest element instead of
+                        the former maximum.  The kernel registers [first, last] as the allowed range,
+                        so the dropped rate becomes unreachable - only do this for a rate the kernel
+                        never asks for (RG52 Mini: the GPU starts at 300 MHz, 200 is unused).
 """
 import argparse, hashlib, struct
 
@@ -134,7 +138,7 @@ def show(elf, info):
             "%d%s" % (r // 1000000, "+63Hz" if r % 1000000 == PLUS else "") for r in ds["rates"])))
 
 
-def apply(elf, info, adds, recycles):
+def apply(elf, info, adds, recycles, drop_lowest=()):
     for key, entries in adds.items():
         if not entries:
             continue
@@ -168,11 +172,19 @@ def apply(elf, info, adds, recycles):
         top, lst = recs[0][0], ds["rates"]
         cur = lst[-1] - PLUS if lst[-1] % 1000000 == PLUS else lst[-1]
         if top > cur:
-            new = lst[:-1] + [top + PLUS]
-            have = {r[0] for r in recs}
-            stale = [i for i, v in enumerate(new[:-1]) if v not in have]
-            if stale and cur not in new:
-                new[stale[-1]] = cur
+            body, have = lst[:-1], {r[0] for r in recs}
+            stale = [i for i, v in enumerate(body) if v not in have]
+            if stale and cur not in body:
+                # a rate no longer backed by the table: park the former maximum there
+                body[stale[-1]] = cur
+                new = body + [top + PLUS]
+            elif cur not in body and cur in have and key in drop_lowest:
+                # every element is live, so keeping the former maximum costs the lowest one
+                print("   %s SCMI list: dropping %d MHz to keep %d MHz"
+                      % (key, body[0] // 1000000, cur // 1000000))
+                new = body[1:] + [cur, top + PLUS]
+            else:
+                new = body + [top + PLUS]
             for i, v in enumerate(new):
                 struct.pack_into("<Q", elf.data, ds["list_off"] + 8 * i, v)
             ds["rates"] = new
@@ -193,6 +205,8 @@ def main():
     for k in ("cpu", "gpu", "npu"):
         ap.add_argument("--" + k, action="append", type=entry, default=[], metavar="MHZ:RING:LEN")
         ap.add_argument("--recycle-" + k, action="append", type=int, default=[], metavar="MHZ")
+    ap.add_argument("--drop-lowest", action="append", default=[], choices=("cpu", "gpu", "npu"),
+                    metavar="KEY")
     a = ap.parse_args()
     raw = open(a.elf, "rb").read()
     elf = Elf(raw)
@@ -205,7 +219,8 @@ def main():
             return
     if not a.output:
         raise SystemExit("-o OUTPUT is required")
-    apply(elf, info, adds, {k: getattr(a, "recycle_" + k) or DEFAULT_RECYCLE[k] for k in adds})
+    apply(elf, info, adds, {k: getattr(a, "recycle_" + k) or DEFAULT_RECYCLE[k] for k in adds},
+          a.drop_lowest)
     out = bytes(elf.data)
     open(a.output, "wb").write(out)
     print("output: %s sha256 %s (%d bytes differ)" % (a.output, hashlib.sha256(out).hexdigest()[:16],
