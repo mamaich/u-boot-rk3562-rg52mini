@@ -383,8 +383,25 @@ void rg52_bootmenu(void)
 	struct bootmenu m = { 0 };
 	int i, saved;
 
-	if (rockchip_get_boot_mode() != BOOT_MODE_NORMAL)
+	/*
+	 * Every way into bootcmd: without the menu the distro boot takes the
+	 * first bootable partition, dArkOS, whatever the state of GammaOS.
+	 * A power-on reads as "None" (the register holds BOOT_COLD), a reboot
+	 * after a panic or a watchdog is no different from "reboot", and
+	 * recovery (the misc BCB, "reboot recovery") has no image of its own on
+	 * this card. Download, fastboot, DFU, UMS and charging are served by
+	 * U-Boot itself.
+	 */
+	switch (rockchip_get_boot_mode()) {
+	case BOOT_MODE_NORMAL:
+	case BOOT_MODE_UNDEFINE:
+	case BOOT_MODE_PANIC:
+	case BOOT_MODE_WATCHDOG:
+	case BOOT_MODE_RECOVERY:
+		break;
+	default:
 		return;
+	}
 
 	/*
 	 * The card only. This check is what keeps the menu away from
