@@ -12,4 +12,18 @@ config SYS_CONFIG_NAME
 config BOARD_SPECIFIC_OPTIONS # dummy
 	def_bool y
 
+config RG52_BOOTMENU
+	bool "RG52 Mini: boot menu for a card with dArkOS and GammaOS"
+	depends on DRM_ROCKCHIP && ROCKCHIP_EARLY_DISTRO_DTB && DM_KEY
+	depends on ROCKCHIP_VENDOR_PARTITION && FS_FAT && CMD_PXE
+	help
+	  On a card that carries both systems, each on its own boot FAT
+	  ("darkos_boot" and "dArkOS_Fat"), show a menu of pictures from the
+	  bootable FAT and boot the chosen system, or reboot into the eMMC.
+	  Cards with one system boot as before.
+
+	  The pictures (bootmenu_*.bmp), like logo.bmp and the charge frames,
+	  are always read from the first bootable partition, whichever system
+	  is chosen: on the dual card that is the dArkOS FAT.
+
 endif

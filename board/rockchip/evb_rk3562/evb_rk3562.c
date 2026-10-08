@@ -172,3 +172,15 @@ int rk_board_fdt_fixup(void *blob)
 
 	return 0;
 }
+
+#if defined(CONFIG_RG52_BOOTMENU) && !defined(CONFIG_SPL_BUILD)
+void rg52_bootmenu(void);
+#endif
+
+int rk_board_late_init(void)
+{
+#if defined(CONFIG_RG52_BOOTMENU) && !defined(CONFIG_SPL_BUILD)
+	rg52_bootmenu();
+#endif
+	return 0;
+}
