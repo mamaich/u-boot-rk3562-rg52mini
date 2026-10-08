@@ -486,6 +486,18 @@ static int fdt_check_hash(void *fdt_addr, u32 fdt_size,
 #endif	/* CONFIG_ROCKCHIP_DTB_VERIFY */
 
 #if defined(CONFIG_ROCKCHIP_EARLY_DISTRO_DTB)
+/*
+ * "part list -bootable" leaves every bootable partition in devplist,
+ * separated by spaces, and "1:3 5" is not a partition; take the files from
+ * the first one, where distro boot looks for extlinux first as well.
+ */
+static int distro_first_part_len(const char *devplist)
+{
+	const char *sp = strchr(devplist, ' ');
+
+	return sp ? sp - devplist : strlen(devplist);
+}
+
 static int rockchip_read_distro_dtb(void *fdt_addr)
 {
 	const char *cmd = "part list ${devtype} ${devnum} -bootable devplist";
@@ -508,7 +520,8 @@ static int rockchip_read_distro_dtb(void *fdt_addr)
 
 	devtype = env_get("devtype");
 	devnum = env_get("devnum");
-	sprintf(devnum_part, "%s:%s", devnum, devplist);
+	snprintf(devnum_part, sizeof(devnum_part), "%s:%.*s", devnum,
+		 distro_first_part_len(devplist), devplist);
 	sprintf(fdt_hex_str, "0x%lx", (ulong)fdt_addr);
 
 	fs_argv[0] = "load";
@@ -554,7 +567,8 @@ int rockchip_read_distro_file(void *buf, const char *name)
 
 	devtype = env_get("devtype");
 	devnum = env_get("devnum");
-	snprintf(devnum_part, sizeof(devnum_part), "%s:%s", devnum, devplist);
+	snprintf(devnum_part, sizeof(devnum_part), "%s:%.*s", devnum,
+		 distro_first_part_len(devplist), devplist);
 	snprintf(addr_str, sizeof(addr_str), "0x%lx", (ulong)buf);
 	snprintf(path, sizeof(path), "/%s", name);
 
