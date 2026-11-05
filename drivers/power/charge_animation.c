@@ -273,9 +273,18 @@ static int check_key_press(struct udevice *dev)
 		}
 	}
 
-	/* auto screen off (while not enable auto screen invert) ? */
+	/*
+	 * auto screen off (while not enable auto screen invert) ?
+	 *
+	 * A long press is on its way out of charging, so leave it alone: this
+	 * synthesizes a short press, and overwriting the real event here would
+	 * turn the screen off instead of booting the system. The user would see
+	 * the device ignore a long press that landed just as the screen timed
+	 * out.
+	 */
 	if (!pdata->auto_wakeup_screen_invert &&
-	    pdata->auto_off_screen_interval) {
+	    pdata->auto_off_screen_interval &&
+	    event != KEY_PRESS_LONG_DOWN) {
 		if (priv->auto_screen_off_timeout &&
 		    get_timer(priv->auto_screen_off_timeout) >
 		    pdata->auto_off_screen_interval * 1000) {	/* 1000ms */
