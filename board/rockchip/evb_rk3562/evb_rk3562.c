@@ -40,9 +40,10 @@ int board_usb_init(int index, enum usb_init_type init)
 
 /*
  * Light a charge LED as early as possible, so that a user can tell the
- * board has started: the display needs about 15 seconds more. Red means
- * a charger is attached, green means running from the battery. This is
- * what the vendor bootloader does.
+ * board has started: until the loader brings the panel up and draws the
+ * logo there is nothing else to go by. Red means a charger is attached,
+ * green means running from the battery. This is what the vendor
+ * bootloader does.
  */
 static void board_power_on_indicate(void)
 {
