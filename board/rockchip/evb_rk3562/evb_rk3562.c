@@ -155,9 +155,31 @@ static void fdt_fixup_no_type_c(void *blob)
 	fdt_setprop_u32(blob, off, "extcon", phandle);
 }
 
+/*
+ * Diagnostic: hand the probe result to the system in /chosen, so it can be
+ * read from a running kernel without a serial console and without pstore.
+ *   1 - the chip answered, 0 - it stayed silent, negative - could not ask
+ */
+static void fdt_report_probe(void *blob, int state)
+{
+	int off;
+
+	fdt_increase_size(blob, 128);
+
+	off = fdt_path_offset(blob, "/chosen");
+	if (off < 0)
+		off = fdt_add_subnode(blob, 0, "chosen");
+	if (off < 0)
+		return;
+
+	fdt_setprop_u32(blob, off, "rg52,typec-probe", (u32)state);
+}
+
 int rk_board_fdt_fixup(void *blob)
 {
 	int ret = husb311_present();
+
+	fdt_report_probe(blob, ret);
 
 	if (ret < 0) {
 		printf("USB: cannot reach the Type-C controller (%d), tree kept as is\n",
