@@ -70,13 +70,6 @@ static void board_power_on_indicate(void)
 		dm_gpio_set_value(&red, charging ? 1 : 0);
 }
 
-int rk_board_init(void)
-{
-	board_power_on_indicate();
-
-	return 0;
-}
-
 /*
  * Board revision A carries no HUSB311 Type-C controller, revision B does.
  * The kernel tree describes one and marks the dwc3 controller with
@@ -94,6 +87,26 @@ int rk_board_init(void)
 #define USB2_PHY_PATH		"/usb2-phy@ff740000"
 #define DWC3_PATH		"/usbdrd/usb@fe500000"
 
+/*
+ * The answer has to be taken early, while the tree we live on is intact.
+ *
+ * The flat blob behind gd->fdt_blob and the live tree lies at fdt_addr_r:
+ * init_kernel_dtb() reads the early dtb to that very address. Booting a
+ * distro then loads the kernel's own dtb over it, from extlinux.conf, to
+ * the same fdt_addr_r (cmd/pxe.c). The live tree keeps pointers into that
+ * blob for every property name and value - of_live.c copies only
+ * full_name - so from that moment on probing anything reads garbage
+ * property names and fails.
+ *
+ * On a card carrying two systems this is not a corner case: the loader
+ * lives on the dtb of the first bootable partition and hands the kernel
+ * the dtb of whichever system was chosen, so the two files differ. Probing
+ * the chip from rk_board_fdt_fixup() would always fail there, the tree
+ * would be left alone, and a board without the Type-C controller would get
+ * no fixup at all - exactly the bug this guards against.
+ */
+static int husb311_state = -EAGAIN;	/* not asked yet */
+
 /* 1 - answers, 0 - silent, negative - could not ask */
 static int husb311_present(void)
 {
@@ -110,6 +123,16 @@ static int husb311_present(void)
 		return ret;
 
 	return dm_i2c_probe(bus, HUSB311_I2C_ADDR, 0, &chip) ? 0 : 1;
+}
+
+int rk_board_init(void)
+{
+	board_power_on_indicate();
+
+	/* while gd->fdt_blob is still the tree we booted on */
+	husb311_state = husb311_present();
+
+	return 0;
 }
 
 static int fdt_node_by_path_or_alias(void *blob, const char *path,
@@ -157,7 +180,7 @@ static void fdt_fixup_no_type_c(void *blob)
 
 int rk_board_fdt_fixup(void *blob)
 {
-	int ret = husb311_present();
+	int ret = husb311_state;
 
 	if (ret < 0) {
 		printf("USB: cannot reach the Type-C controller (%d), tree kept as is\n",
