@@ -7,6 +7,10 @@ CONFIG_SPL_FIT_GENERATOR="arch/arm/mach-rockchip/make_fit_atf.sh"
 CONFIG_ROCKCHIP_RK3562=y
 CONFIG_ROCKCHIP_FIT_IMAGE=y
 CONFIG_ROCKCHIP_VENDOR_PARTITION=y
+# диагностика: журнал загрузчика в буфер pstore ядра (ramoops@110000)
+CONFIG_PSTORE=y
+CONFIG_PERSISTENT_RAM_ADDR=0x110000
+CONFIG_PERSISTENT_RAM_SIZE=0x8000
 CONFIG_USING_KERNEL_DTB=y
 CONFIG_OF_U_BOOT_REMOVE_PROPS="clock-names assigned-clocks assigned-clock-rates assigned-clock-parents"
 CONFIG_ROCKCHIP_EARLY_DISTRO_DTB=y
